@@ -160,7 +160,7 @@ func last(ip net.IP, mask net.IPMask) net.IP {
 	return out
 }
 
-func NetworksContain(i string, n ...string) bool {
+func networksContain(i string, n ...string) bool {
 	for _, ns := range n {
 		_, c, _ := net.ParseCIDR(ns)
 		if c.Contains(net.ParseIP(i)) {
