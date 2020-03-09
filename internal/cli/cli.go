@@ -67,22 +67,22 @@ func Debugln(a ...interface{}) {
 
 // Infoln prints an info level message with a newline appended
 func Infoln(a ...interface{}) {
-	writeMessage(LevelDebug, outWriter, fmt.Sprintln("[+]", fmt.Sprint(a...)))
+	writeMessage(LevelInfo, outWriter, fmt.Sprintln("[+]", fmt.Sprint(a...)))
 }
 
 // Warnln prints a warning level message with a newline appended
 func Warnln(a ...interface{}) {
-	writeMessage(LevelDebug, outWriter, fmt.Sprintln("[*]", fmt.Sprint(a...)))
+	writeMessage(LevelWarn, outWriter, fmt.Sprintln("[*]", fmt.Sprint(a...)))
 }
 
 // Errorln prints an error level message with a newline appended
 func Errorln(a ...interface{}) {
-	writeMessage(LevelDebug, outWriter, fmt.Sprintln("[-]", fmt.Sprint(a...)))
+	writeMessage(LevelError, outWriter, fmt.Sprintln("[-]", fmt.Sprint(a...)))
 }
 
 // Fatalln prints a fatal level message with a newline appended and calls os.Exit(1)
 func Fatalln(a ...interface{}) {
-	writeMessage(LevelDebug, outWriter, fmt.Sprintln("[!]", fmt.Sprint(a...)))
+	writeMessage(LevelFatal, outWriter, fmt.Sprintln("[!]", fmt.Sprint(a...)))
 	os.Exit(1)
 }
 
