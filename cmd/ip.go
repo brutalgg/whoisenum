@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"log"
 	"os"
 
+	"github.com/brutalgg/whoisenum/internal/cli"
 	"github.com/brutalgg/whoisenum/internal/ipMath"
-	"github.com/brutalgg/whoisenum/internal/output"
 	"github.com/brutalgg/whoisenum/internal/rdap"
 	"github.com/spf13/cobra"
 )
@@ -17,15 +18,9 @@ var ipCmd = &cobra.Command{
 	Run:   basecmd,
 }
 
-func init() {
-	rootCmd.AddCommand(ipCmd)
-}
-
-func basecmd(cmd *cobra.Command, args []string) {
+func basecmd(ctx *cobra.Command, args []string) {
+	inFile, _ := ctx.Flags().GetString("file")
 	var result []rdap.WhoisIPEntry
-
-	// TODO Parse some CLI args to get this info
-	inFile := "sample.txt"
 
 	f, _ := os.Open(inFile)
 	defer f.Close()
@@ -44,7 +39,7 @@ func basecmd(cmd *cobra.Command, args []string) {
 			result = append(result, qr)
 		}
 	}
-	output.JsonWriteOut(os.Stdout, result)
+	jsonOut(result)
 }
 
 func uniqueNetworkCheck(i string, r []rdap.WhoisIPEntry) bool {
@@ -55,4 +50,13 @@ func uniqueNetworkCheck(i string, r []rdap.WhoisIPEntry) bool {
 		}
 	}
 	return true
+}
+
+func jsonOut(x interface{}) error {
+	o, err := json.MarshalIndent(x, "", "  ")
+	if err != nil {
+		return err
+	}
+	cli.NoFormatString(string(o))
+	return nil
 }
