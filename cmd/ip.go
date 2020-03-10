@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"encoding/json"
-	"log"
 	"os"
 
 	"github.com/brutalgg/whoisenum/internal/cli"
@@ -19,27 +18,42 @@ var ipCmd = &cobra.Command{
 }
 
 func basecmd(ctx *cobra.Command, args []string) {
-	inFile, _ := ctx.Flags().GetString("file")
 	var result []rdap.WhoisIPEntry
+	l, _ := ctx.Flags().GetString("lookup")
+	j, _ := ctx.Flags().GetBool("json")
+	inFile, _ := ctx.Flags().GetString("file")
 
-	f, _ := os.Open(inFile)
-	defer f.Close()
-
-	reader := bufio.NewScanner(f)
-	for reader.Scan() {
-		if i := reader.Text(); i != "" {
-			if !uniqueNetworkCheck(i, result) {
-				continue
+	if inFile != "" {
+		f, _ := os.Open(inFile)
+		defer f.Close()
+		reader := bufio.NewScanner(f)
+		for reader.Scan() {
+			if i := reader.Text(); i != "" {
+				if !uniqueNetworkCheck(i, result) {
+					continue
+				}
+				qr, err := rdap.GetWhoisIPResults(i)
+				if err != nil {
+					cli.Fatalln("Whois lookup error:", err)
+				}
+				result = append(result, qr)
 			}
-			qr, err := rdap.GetWhoisIPResults(i)
-			//qr, err := getWhoisIPResults(i)
-			if err != nil {
-				log.Fatalln("Error with Whois lookup:", err)
-			}
-			result = append(result, qr)
 		}
+	} else if l != "" {
+		qr, err := rdap.GetWhoisIPResults(l)
+		if err != nil {
+			cli.Errorln("WhoIS lookup error:", err)
+		}
+		result = append(result, qr)
+	} else {
+		cli.Fatalln("Lookup and File flag not detected. The IP command requires at least one of these flags.")
 	}
-	jsonOut(result)
+
+	if j {
+		jsonResult(result)
+	} else {
+		standardResult(result)
+	}
 }
 
 func uniqueNetworkCheck(i string, r []rdap.WhoisIPEntry) bool {
@@ -52,11 +66,33 @@ func uniqueNetworkCheck(i string, r []rdap.WhoisIPEntry) bool {
 	return true
 }
 
-func jsonOut(x interface{}) error {
+func jsonResult(x interface{}) error {
 	o, err := json.MarshalIndent(x, "", "  ")
 	if err != nil {
 		return err
 	}
-	cli.NoFormatString(string(o))
+	cli.WriteResults(string(o))
 	return nil
+}
+
+func standardResult(x []rdap.WhoisIPEntry) {
+	for _, v := range x {
+		cli.WriteResults("Registrar:", v.Registrar)
+		cli.WriteResults("Starting IP:", v.NetworkAddress)
+		cli.WriteResults("Ending IP:", v.BroadcastAddress)
+		for i := 0; i < len(v.CIDR); i++ {
+			cli.WriteResults("CIDR:", v.CIDR[i])
+		}
+		cli.WriteResults("IP Version:", v.IPVersion)
+		cli.WriteResults("Registration Type:", v.Type)
+		cli.WriteResults("Parent Registration:", v.Parent)
+		cli.WriteResults("Organization:", v.Organization)
+		for i := 0; i < len(v.IPSearched); i++ {
+			cli.WriteResults("IPs Searched:", v.IPSearched[i])
+		}
+		cli.WriteResults("--------------------")
+		/*
+			CIDR             []string `json:"cidr"`
+			IPSearched       []string `json:"ip_searched"`*/
+	}
 }

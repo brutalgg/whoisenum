@@ -86,9 +86,14 @@ func Fatalln(a ...interface{}) {
 	os.Exit(1)
 }
 
-// NoFormatString is a special function to be used only when printing strings specifially without formatting
-func NoFormatString(a string) {
+// WriteBanner is a special function to be used only when printing the program banner
+func WriteBanner(a string) {
 	writeMessage(LevelInfo, outWriter, fmt.Sprintln(a))
+}
+
+// WriteResults is meant to write results of tool actions
+func WriteResults(a ...interface{}) {
+	writeMessage(6, outWriter, fmt.Sprintln(a...))
 }
 
 func writeMessage(level int, writer io.Writer, message string) {

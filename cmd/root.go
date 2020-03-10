@@ -8,25 +8,41 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "whoisenum",
-	Version: "0.0.1a",
-	PersistentPreRun: func(ctx *cobra.Command, args []string) {
-		l, _ := ctx.Flags().GetString("lookup")
-		f, _ := ctx.Flags().GetString("file")
-		if l != "" && f != "" {
-			cli.Warnln("lookup and file flags both provided. Ignoring lookup flag...")
-			//return errors.New("options --lookup and --file are mutually exclusive. Please only provide one of these options to continue")
-		}
-	},
+	Use:              "whoisenum",
+	Version:          "0.0.1a",
+	PersistentPreRun: setup,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
+func setup(ctx *cobra.Command, args []string) {
+	// Check the relevant flags
+	q, _ := ctx.Flags().GetBool("quiet")
+	v, _ := ctx.Flags().GetBool("verbose")
+	l, _ := ctx.Flags().GetString("lookup")
+	f, _ := ctx.Flags().GetString("file")
+
+	// Set our output level
+	switch {
+	case q:
+		cli.SetPrintLevel(cli.LevelFatal)
+	case v:
+		cli.SetPrintLevel(cli.LevelDebug)
+	}
+
+	// Print the Banner
+	cli.WriteBanner(banner.Banner)
+
+	// Warn if both --lookup and --file are used
+	if l != "" && f != "" {
+		cli.Warnln("File flag detected. Ignoring lookup flag...")
+	}
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	cli.NoFormatString(banner.Banner)
 	if err := rootCmd.Execute(); err != nil {
 		cli.Errorln(err)
 	}
