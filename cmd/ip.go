@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/brutalgg/whoisenum/internal/cli"
 	"github.com/brutalgg/whoisenum/internal/ipMath"
@@ -14,11 +15,11 @@ import (
 var ipCmd = &cobra.Command{
 	Use:   "ip",
 	Short: "Search internet registries by ip address",
-	Run:   basecmd,
+	Run:   baseIPCmd,
 }
 
-func basecmd(ctx *cobra.Command, args []string) {
-	var result []rdap.WhoisIPEntry
+func baseIPCmd(ctx *cobra.Command, args []string) {
+	var result []rdap.WhoisIPRecord
 	l, _ := ctx.Flags().GetString("lookup")
 	j, _ := ctx.Flags().GetBool("json")
 	inFile, _ := ctx.Flags().GetString("file")
@@ -42,7 +43,7 @@ func basecmd(ctx *cobra.Command, args []string) {
 	} else if l != "" {
 		qr, err := rdap.GetWhoisIPResults(l)
 		if err != nil {
-			cli.Errorln("WhoIS lookup error:", err)
+			cli.Fatalln("Whois lookup error:", err)
 		}
 		result = append(result, qr)
 	} else {
@@ -56,7 +57,7 @@ func basecmd(ctx *cobra.Command, args []string) {
 	}
 }
 
-func uniqueNetworkCheck(i string, r []rdap.WhoisIPEntry) bool {
+func uniqueNetworkCheck(i string, r []rdap.WhoisIPRecord) bool {
 	for indx := range r {
 		if ipMath.NetworksContain(i, r[indx].CIDR...) {
 			r[indx].IPSearched = append(r[indx].IPSearched, i)
@@ -75,24 +76,17 @@ func jsonResult(x interface{}) error {
 	return nil
 }
 
-func standardResult(x []rdap.WhoisIPEntry) {
+func standardResult(x []rdap.WhoisIPRecord) {
 	for _, v := range x {
 		cli.WriteResults("Registrar:", v.Registrar)
 		cli.WriteResults("Starting IP:", v.NetworkAddress)
 		cli.WriteResults("Ending IP:", v.BroadcastAddress)
-		for i := 0; i < len(v.CIDR); i++ {
-			cli.WriteResults("CIDR:", v.CIDR[i])
-		}
+		cli.WriteResults("CIDR:\t", strings.Join(v.CIDR, "\n\t "))
 		cli.WriteResults("IP Version:", v.IPVersion)
 		cli.WriteResults("Registration Type:", v.Type)
 		cli.WriteResults("Parent Registration:", v.Parent)
 		cli.WriteResults("Organization:", v.Organization)
-		for i := 0; i < len(v.IPSearched); i++ {
-			cli.WriteResults("IPs Searched:", v.IPSearched[i])
-		}
+		cli.WriteResults("IPs Searched:\t", strings.Join(v.IPSearched, "\n\t\t "))
 		cli.WriteResults("--------------------")
-		/*
-			CIDR             []string `json:"cidr"`
-			IPSearched       []string `json:"ip_searched"`*/
 	}
 }
