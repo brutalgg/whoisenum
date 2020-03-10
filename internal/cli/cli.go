@@ -86,6 +86,11 @@ func Fatalln(a ...interface{}) {
 	os.Exit(1)
 }
 
+// NoFormatString is a special function to be used only when printing strings specifially without formatting
+func NoFormatString(a string) {
+	writeMessage(LevelInfo, outWriter, fmt.Sprintln(a))
+}
+
 func writeMessage(level int, writer io.Writer, message string) {
 	if level < printLevel {
 		return
