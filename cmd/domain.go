@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"os"
-	"strings"
 
 	"github.com/brutalgg/whoisenum/internal/cli"
 	"github.com/brutalgg/whoisenum/internal/rdap"
@@ -23,44 +22,45 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 	j, _ := ctx.Flags().GetBool("json")
 	inFile, _ := ctx.Flags().GetString("file")
 
-	if inFile != "" {
+	switch {
+	case l == "" && inFile == "":
+		cli.Fatalln("Lookup and File flag not detected. The domain command requires at least one of these flags.")
+	case l != "" && inFile == "":
+		cli.Info("Searching Whois Records for IP %v", l)
+		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
+		if r, e := queryDomain(l); e != nil {
+			cli.Errorln("Whois lookup error", e)
+		} else {
+			result = append(result, r)
+		}
+	case inFile != "":
 		f, _ := os.Open(inFile)
 		defer f.Close()
+		cli.Info("Searching Whois Records for IPs identified in %v", inFile)
+		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
 		reader := bufio.NewScanner(f)
 		for reader.Scan() {
 			if i := reader.Text(); i != "" {
-				qr, err := rdap.GetWhoisDomainResults(i)
-				if err != nil {
-					cli.Fatalln("Whois lookup error:", err)
+				if r, e := queryDomain(i); e != nil {
+					cli.Errorln("Whois lookup error", e)
+				} else {
+					result = append(result, r)
 				}
-				result = append(result, qr)
 			}
 		}
-	} else if l != "" {
-		qr, err := rdap.GetWhoisDomainResults(l)
-		if err != nil {
-			cli.Fatalln("Whois lookup error:", err)
-		}
-		result = append(result, qr)
-	} else {
-		cli.Fatalln("Lookup and File flag not detected. The domain command requires at least one of these flags.")
 	}
 
 	if j {
-		jsonResult(result)
+		jsonResultsOut(result)
 	} else {
-		standardDResult(result)
+		domainResultsOut(result)
 	}
 }
 
-func standardDResult(x []rdap.WhoisDomainRecord) {
-	for _, v := range x {
-		cli.WriteResults("Handle:", v.Handle)
-		cli.WriteResults("Name:", v.Name)
-		cli.WriteResults("Name Servers:\t", strings.Join(v.NameServers, "\n\t\t "))
-		cli.WriteResults("Status:\t", strings.Join(v.Status, "\n\t "))
-		cli.WriteResults("Registration:", v.Reg)
-		cli.WriteResults("Expiration:", v.Exp)
-		cli.WriteResults("--------------------")
+func queryDomain(l string) (rdap.WhoisDomainRecord, error) {
+	r, e := rdap.GetWhoisDomainResults(l)
+	if e != nil {
+		return rdap.WhoisDomainRecord{}, e
 	}
+	return r, nil
 }
