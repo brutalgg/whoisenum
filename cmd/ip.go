@@ -22,11 +22,18 @@ func baseIPCmd(ctx *cobra.Command, args []string) {
 	l, _ := ctx.Flags().GetString("lookup")
 	inFile, _ := ctx.Flags().GetString("file")
 	j, _ := ctx.Flags().GetBool("json")
-	r, _ := ctx.Flags().GetInt("rate")
 
 	switch {
 	case l == "" && inFile == "":
-		cli.Fatalln("Neither Lookup nor File flag not detected. The IP command requires at least one of these flags.")
+		cli.Debugln("Missing -l and -f. Trying Stdin...")
+		info, err := os.Stdin.Stat()
+		if err != nil {
+			cli.Fatalln("No input found in -l, -f, or Stdin. Exiting...")
+		}
+		if info.Mode()&os.ModeCharDevice != 0 || info.Size() <= 0 {
+			cli.Fatalln("No input found in -l, -f, or Stdin. Exiting...")
+		}
+		result = ipScannerLogic(ctx, bufio.NewScanner(os.Stdin))
 	case l != "" && inFile == "":
 		cli.Info("Searching Whois Records for IP %v", l)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
@@ -40,21 +47,7 @@ func baseIPCmd(ctx *cobra.Command, args []string) {
 		defer f.Close()
 		cli.Info("Searching Whois Records for IPs identified in %v", inFile)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
-		reader := bufio.NewScanner(f)
-		for reader.Scan() {
-			if i := reader.Text(); i != "" {
-				if !uniqueNetworkCheck(i, result) {
-					continue
-				}
-				cli.Info("Searching Whois Records for IP %v", i)
-				if r, e := queryIP(i); e != nil {
-					cli.Errorln("Whois lookup error", e)
-				} else {
-					result = append(result, r)
-				}
-				time.Sleep(time.Duration(r) * time.Second)
-			}
-		}
+		result = ipScannerLogic(ctx, bufio.NewScanner(f))
 	}
 
 	if j {
@@ -72,6 +65,26 @@ func uniqueNetworkCheck(i string, r []rdap.WhoisIPRecord) bool {
 		}
 	}
 	return true
+}
+
+func ipScannerLogic(ctx *cobra.Command, scanner *bufio.Scanner) []rdap.WhoisIPRecord {
+	var result []rdap.WhoisIPRecord
+	r, _ := ctx.Flags().GetInt("rate")
+	for scanner.Scan() {
+		if i := scanner.Text(); i != "" {
+			if !uniqueNetworkCheck(i, result) {
+				continue
+			}
+			cli.Info("Searching Whois Records for IP %v", i)
+			if r, e := queryIP(i); e != nil {
+				cli.Errorln("Whois lookup error ", e)
+			} else {
+				result = append(result, r)
+			}
+			time.Sleep(time.Duration(r) * time.Second)
+		}
+	}
+	return result
 }
 
 func queryIP(s string) (rdap.WhoisIPRecord, error) {

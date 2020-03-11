@@ -22,11 +22,18 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 	l, _ := ctx.Flags().GetString("lookup")
 	inFile, _ := ctx.Flags().GetString("file")
 	j, _ := ctx.Flags().GetBool("json")
-	r, _ := ctx.Flags().GetInt("rate")
 
 	switch {
 	case l == "" && inFile == "":
-		cli.Fatalln("Lookup and File flag not detected. The domain command requires at least one of these flags.")
+		cli.Debugln("Missing -l and -f. Trying Stdin...")
+		info, err := os.Stdin.Stat()
+		if err != nil {
+			cli.Fatalln("No input found in -l, -f, or Stdin. Exiting...")
+		}
+		if info.Mode()&os.ModeCharDevice != 0 || info.Size() <= 0 {
+			cli.Fatalln("No input found in -l, -f, or Stdin. Exiting...")
+		}
+		result = domainScannerLogic(ctx, bufio.NewScanner(os.Stdin))
 	case l != "" && inFile == "":
 		cli.Info("Searching Whois Records for Domain %v", l)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
@@ -40,18 +47,7 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 		defer f.Close()
 		cli.Info("Searching Whois Records for Domains identified in %v", inFile)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
-		reader := bufio.NewScanner(f)
-		for reader.Scan() {
-			if i := reader.Text(); i != "" {
-				cli.Info("Searching Whois Records for Domain %v", i)
-				if r, e := queryDomain(i); e != nil {
-					cli.Errorln("Whois lookup error", e)
-				} else {
-					result = append(result, r)
-				}
-				time.Sleep(time.Duration(r) * time.Second)
-			}
-		}
+		result = domainScannerLogic(ctx, bufio.NewScanner(f))
 	}
 
 	if j {
@@ -59,6 +55,23 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 	} else {
 		domainResultsOut(result)
 	}
+}
+
+func domainScannerLogic(ctx *cobra.Command, scanner *bufio.Scanner)[]rdap.WhoisDomainRecord{
+	r, _ := ctx.Flags().GetInt("rate")
+	var result []rdap.WhoisDomainRecord
+	for scanner.Scan() {
+		if i := scanner.Text(); i != "" {
+			cli.Info("Searching Whois Records for Domain %v", i)
+			if r, e := queryDomain(i); e != nil {
+				cli.Errorln("Whois lookup error", e)
+			} else {
+				result = append(result, r)
+			}
+			time.Sleep(time.Duration(r) * time.Second)
+		}
+	}
+	return []rdap.WhoisDomainRecord
 }
 
 func queryDomain(s string) (rdap.WhoisDomainRecord, error) {
