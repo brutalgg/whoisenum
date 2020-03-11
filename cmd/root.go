@@ -22,6 +22,7 @@ func setup(ctx *cobra.Command, args []string) {
 	v, _ := ctx.Flags().GetBool("verbose")
 	l, _ := ctx.Flags().GetString("lookup")
 	f, _ := ctx.Flags().GetString("file")
+	r, _ := ctx.Flags().GetInt("rate")
 
 	// Set our output level
 	switch {
@@ -37,6 +38,11 @@ func setup(ctx *cobra.Command, args []string) {
 	// Warn if both --lookup and --file are used
 	if l != "" && f != "" {
 		cli.Warnln("File flag detected. Ignoring lookup flag...")
+	}
+
+	// Notify if rate limiting is active
+	if r != 0 {
+		cli.Debug("Rate limiting detected. Sending queries every %v second(s)", r)
 	}
 }
 
@@ -63,7 +69,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Include verbose messages from program execution")
 	rootCmd.PersistentFlags().StringP("file", "f", "", "File with single IP/Domain per line")
 	rootCmd.PersistentFlags().StringP("lookup", "l", "", "Single IP/Domain to lookup. Has no effect when --file is also specified.")
-	rootCmd.PersistentFlags().IntP("rate", "r", 20, "Limit the number of requests per second")
+	rootCmd.PersistentFlags().IntP("rate", "r", 0, "The number of seconds between queries")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

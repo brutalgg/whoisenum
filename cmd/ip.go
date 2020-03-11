@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"os"
+	"time"
 
 	"github.com/brutalgg/whoisenum/internal/cli"
 	"github.com/brutalgg/whoisenum/internal/ipMath"
@@ -19,8 +20,9 @@ var ipCmd = &cobra.Command{
 func baseIPCmd(ctx *cobra.Command, args []string) {
 	var result []rdap.WhoisIPRecord
 	l, _ := ctx.Flags().GetString("lookup")
-	j, _ := ctx.Flags().GetBool("json")
 	inFile, _ := ctx.Flags().GetString("file")
+	j, _ := ctx.Flags().GetBool("json")
+	r, _ := ctx.Flags().GetInt("rate")
 
 	switch {
 	case l == "" && inFile == "":
@@ -44,11 +46,13 @@ func baseIPCmd(ctx *cobra.Command, args []string) {
 				if !uniqueNetworkCheck(i, result) {
 					continue
 				}
+				cli.Info("Searching Whois Records for IP %v", i)
 				if r, e := queryIP(i); e != nil {
 					cli.Errorln("Whois lookup error", e)
 				} else {
 					result = append(result, r)
 				}
+				time.Sleep(time.Duration(r) * time.Second)
 			}
 		}
 	}
@@ -70,8 +74,8 @@ func uniqueNetworkCheck(i string, r []rdap.WhoisIPRecord) bool {
 	return true
 }
 
-func queryIP(l string) (rdap.WhoisIPRecord, error) {
-	r, e := rdap.GetWhoisIPResults(l)
+func queryIP(s string) (rdap.WhoisIPRecord, error) {
+	r, e := rdap.GetWhoisIPResults(s)
 	if e != nil {
 		return rdap.WhoisIPRecord{}, e
 	}
