@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"bufio"
-	"encoding/json"
 	"os"
-	"strings"
 
 	"github.com/brutalgg/whoisenum/internal/cli"
 	"github.com/brutalgg/whoisenum/internal/ipMath"
@@ -24,36 +22,41 @@ func baseIPCmd(ctx *cobra.Command, args []string) {
 	j, _ := ctx.Flags().GetBool("json")
 	inFile, _ := ctx.Flags().GetString("file")
 
-	if inFile != "" {
+	switch {
+	case l == "" && inFile == "":
+		cli.Fatalln("Neither Lookup nor File flag not detected. The IP command requires at least one of these flags.")
+	case l != "" && inFile == "":
+		cli.Info("Searching Whois Records for IP %v", l)
+		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
+		if r, e := queryIP(l); e != nil {
+			cli.Errorln("Whois lookup error", e)
+		} else {
+			result = append(result, r)
+		}
+	case inFile != "":
 		f, _ := os.Open(inFile)
 		defer f.Close()
+		cli.Info("Searching Whois Records for IPs identified in %v", inFile)
+		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
 		reader := bufio.NewScanner(f)
 		for reader.Scan() {
 			if i := reader.Text(); i != "" {
 				if !uniqueNetworkCheck(i, result) {
 					continue
 				}
-				qr, err := rdap.GetWhoisIPResults(i)
-				if err != nil {
-					cli.Fatalln("Whois lookup error:", err)
+				if r, e := queryIP(i); e != nil {
+					cli.Errorln("Whois lookup error", e)
+				} else {
+					result = append(result, r)
 				}
-				result = append(result, qr)
 			}
 		}
-	} else if l != "" {
-		qr, err := rdap.GetWhoisIPResults(l)
-		if err != nil {
-			cli.Fatalln("Whois lookup error:", err)
-		}
-		result = append(result, qr)
-	} else {
-		cli.Fatalln("Lookup and File flag not detected. The IP command requires at least one of these flags.")
 	}
 
 	if j {
-		jsonResult(result)
+		jsonResultsOut(result)
 	} else {
-		standardResult(result)
+		ipResultsOut(result)
 	}
 }
 
@@ -67,26 +70,10 @@ func uniqueNetworkCheck(i string, r []rdap.WhoisIPRecord) bool {
 	return true
 }
 
-func jsonResult(x interface{}) error {
-	o, err := json.MarshalIndent(x, "", "  ")
-	if err != nil {
-		return err
+func queryIP(l string) (rdap.WhoisIPRecord, error) {
+	r, e := rdap.GetWhoisIPResults(l)
+	if e != nil {
+		return rdap.WhoisIPRecord{}, e
 	}
-	cli.WriteResults(string(o))
-	return nil
-}
-
-func standardResult(x []rdap.WhoisIPRecord) {
-	for _, v := range x {
-		cli.WriteResults("Registrar:", v.Registrar)
-		cli.WriteResults("Starting IP:", v.NetworkAddress)
-		cli.WriteResults("Ending IP:", v.BroadcastAddress)
-		cli.WriteResults("CIDR:\t", strings.Join(v.CIDR, "\n\t "))
-		cli.WriteResults("IP Version:", v.IPVersion)
-		cli.WriteResults("Registration Type:", v.Type)
-		cli.WriteResults("Parent Registration:", v.Parent)
-		cli.WriteResults("Organization:", v.Organization)
-		cli.WriteResults("IPs Searched:\t", strings.Join(v.IPSearched, "\n\t\t "))
-		cli.WriteResults("--------------------")
-	}
+	return r, nil
 }
