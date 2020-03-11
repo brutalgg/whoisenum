@@ -57,7 +57,7 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 	}
 }
 
-func domainScannerLogic(ctx *cobra.Command, scanner *bufio.Scanner)[]rdap.WhoisDomainRecord{
+func domainScannerLogic(ctx *cobra.Command, scanner *bufio.Scanner) []rdap.WhoisDomainRecord {
 	r, _ := ctx.Flags().GetInt("rate")
 	var result []rdap.WhoisDomainRecord
 	for scanner.Scan() {
@@ -71,7 +71,7 @@ func domainScannerLogic(ctx *cobra.Command, scanner *bufio.Scanner)[]rdap.WhoisD
 			time.Sleep(time.Duration(r) * time.Second)
 		}
 	}
-	return []rdap.WhoisDomainRecord
+	return result
 }
 
 func queryDomain(s string) (rdap.WhoisDomainRecord, error) {
