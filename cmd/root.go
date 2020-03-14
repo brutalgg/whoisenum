@@ -1,15 +1,17 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/brutalgg/whoisenum/internal/banner"
-	"github.com/brutalgg/whoisenum/internal/cli"
+	"github.com/brutalgg/whoisenum/pkg/cli"
 	"github.com/spf13/cobra"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:              "whoisenum",
-	Version:          "0.1beta",
+	Version:          "0.2beta",
 	PersistentPreRun: setup,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -22,7 +24,7 @@ func setup(ctx *cobra.Command, args []string) {
 	v, _ := ctx.Flags().GetBool("verbose")
 	l, _ := ctx.Flags().GetString("lookup")
 	f, _ := ctx.Flags().GetString("file")
-	r, _ := ctx.Flags().GetInt("rate")
+	r, _ := ctx.Flags().GetString("rate")
 
 	// Set our output level
 	switch {
@@ -35,14 +37,23 @@ func setup(ctx *cobra.Command, args []string) {
 	// Print the Banner
 	cli.WriteBanner(banner.Banner)
 
-	// Warn if both --lookup and --file are used
-	if l != "" && f != "" {
-		cli.Warnln("File flag detected. Ignoring lookup flag...")
+	// Notify if rate limiting is active
+	if r != "500ms" {
+		if r[len(r)-2:len(r)] == "ms" || r[len(r)-1:len(r)] == "s" {
+			if _, err := time.ParseDuration(r); err != nil {
+				cli.Fatal("%v", err)
+			}
+			cli.Debug("Default rate limiting overwritten with %v", r)
+		} else {
+			cli.Fatal(`Unknown unit of time provided for delay. Accepts either "ms" or "s".`)
+		}
 	}
 
-	// Notify if rate limiting is active
-	if r != 0 {
-		cli.Debug("Rate limiting detected. Sending queries every %v second(s)", r)
+	switch {
+	case l != "" && f != "":
+		cli.Warnln("File flag detected. Ignoring lookup flag...")
+	case l == "" && f == "":
+		cli.Fatalln("Missing -l and -f. This application requires at least one of these flags.")
 	}
 }
 
@@ -52,7 +63,6 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		cli.Fatalln(err)
 	}
-	cli.Infoln("Queries Complete...")
 	cli.Infoln("Goodbye.")
 }
 
@@ -69,7 +79,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Include verbose messages from program execution")
 	rootCmd.PersistentFlags().StringP("file", "f", "", "File with single IP/Domain per line")
 	rootCmd.PersistentFlags().StringP("lookup", "l", "", "Single IP/Domain to lookup. Has no effect when --file is also specified.")
-	rootCmd.PersistentFlags().IntP("rate", "r", 0, "The number of seconds between queries")
+	rootCmd.PersistentFlags().StringP("rate", "r", "500ms", "The number of seconds between queries")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

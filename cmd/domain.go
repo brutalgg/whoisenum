@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"time"
 
-	"github.com/brutalgg/whoisenum/internal/cli"
 	"github.com/brutalgg/whoisenum/internal/rdap"
+	"github.com/brutalgg/whoisenum/internal/utils"
+	"github.com/brutalgg/whoisenum/pkg/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -24,16 +26,6 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 	j, _ := ctx.Flags().GetBool("json")
 
 	switch {
-	case l == "" && inFile == "":
-		cli.Debugln("Missing -l and -f. Trying Stdin...")
-		info, err := os.Stdin.Stat()
-		if err != nil {
-			cli.Fatalln("No input found in -l, -f, or Stdin. Exiting...")
-		}
-		if info.Mode()&os.ModeCharDevice != 0 || info.Size() <= 0 {
-			cli.Fatalln("No input found in -l, -f, or Stdin. Exiting...")
-		}
-		result = domainScannerLogic(ctx, bufio.NewScanner(os.Stdin))
 	case l != "" && inFile == "":
 		cli.Info("Searching Whois Records for Domain %v", l)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
@@ -47,19 +39,24 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 		defer f.Close()
 		cli.Info("Searching Whois Records for Domains identified in %v", inFile)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
-		result = domainScannerLogic(ctx, bufio.NewScanner(f))
+		result = domainScannerLogic(ctx, f)
 	}
 
 	if j {
-		jsonResultsOut(result)
+		utils.JsonResultsOut(result)
 	} else {
-		domainResultsOut(result)
+		for _, v := range result {
+			v.PrintResult()
+		}
 	}
 }
 
-func domainScannerLogic(ctx *cobra.Command, scanner *bufio.Scanner) []rdap.WhoisDomainRecord {
-	r, _ := ctx.Flags().GetInt("rate")
+func domainScannerLogic(ctx *cobra.Command, readr io.ReadWriteSeeker) []rdap.WhoisDomainRecord {
 	var result []rdap.WhoisDomainRecord
+	r, _ := ctx.Flags().GetString("rate")
+	rd, _ := time.ParseDuration(r)
+	utils.SizeCheck(readr)
+	scanner := bufio.NewScanner(readr)
 	for scanner.Scan() {
 		if i := scanner.Text(); i != "" {
 			cli.Info("Searching Whois Records for Domain %v", i)
@@ -68,7 +65,7 @@ func domainScannerLogic(ctx *cobra.Command, scanner *bufio.Scanner) []rdap.Whois
 			} else {
 				result = append(result, r)
 			}
-			time.Sleep(time.Duration(r) * time.Second)
+			time.Sleep(rd)
 		}
 	}
 	return result

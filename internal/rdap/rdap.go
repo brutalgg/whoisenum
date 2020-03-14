@@ -1,8 +1,10 @@
 package rdap
 
 import (
-	"github.com/brutalgg/whoisenum/internal/cli"
+	"strings"
+
 	"github.com/brutalgg/whoisenum/internal/ipMath"
+	"github.com/brutalgg/whoisenum/pkg/cli"
 
 	"github.com/openrdap/rdap"
 )
@@ -90,4 +92,29 @@ func GetWhoisDomainResults(domain string) (WhoisDomainRecord, error) {
 	}
 
 	return *whois, nil
+}
+
+func (w WhoisIPRecord) PrintResult() {
+	cli.Infoln("Query Result")
+	cli.WriteResults("Registrar:", w.Registrar)
+	cli.WriteResults("Starting IP:", w.NetworkAddress)
+	cli.WriteResults("Ending IP:", w.BroadcastAddress)
+	cli.WriteResults("CIDR:\t", strings.Join(w.CIDR, "\n\t "))
+	cli.WriteResults("IP Version:", w.IPVersion)
+	cli.WriteResults("Registration Type:", w.Type)
+	cli.WriteResults("Parent Registration:", w.Parent)
+	cli.WriteResults("Organization:", w.Organization)
+	cli.WriteResults("IPs Searched:\t", strings.Join(w.IPSearched, "\n\t\t "))
+	cli.WriteResults("")
+}
+
+func (w WhoisDomainRecord) PrintResult() {
+	cli.Infoln("Query Result")
+	cli.WriteResults("Handle:", w.Handle)
+	cli.WriteResults("Name:", w.Name)
+	cli.WriteResults("Name Servers:\t", strings.Join(w.NameServers, "\n\t\t "))
+	cli.WriteResults("Status:\t", strings.Join(w.Status, "\n\t "))
+	cli.WriteResults("Registration:", w.Reg)
+	cli.WriteResults("Expiration:", w.Exp)
+	cli.WriteResults("")
 }
