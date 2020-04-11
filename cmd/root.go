@@ -3,8 +3,8 @@ package cmd
 import (
 	"time"
 
+	"github.com/brutalgg/cli"
 	"github.com/brutalgg/whoisenum/internal/banner"
-	"github.com/brutalgg/whoisenum/pkg/cli"
 	"github.com/spf13/cobra"
 )
 

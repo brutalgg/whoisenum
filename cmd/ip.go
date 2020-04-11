@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/brutalgg/cli"
 	"github.com/brutalgg/whoisenum/internal/ipMath"
 	"github.com/brutalgg/whoisenum/internal/rdap"
 	"github.com/brutalgg/whoisenum/internal/utils"
-	"github.com/brutalgg/whoisenum/pkg/cli"
 	"github.com/spf13/cobra"
 )
 

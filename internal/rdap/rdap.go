@@ -3,8 +3,8 @@ package rdap
 import (
 	"strings"
 
+	"github.com/brutalgg/cli"
 	"github.com/brutalgg/whoisenum/internal/ipMath"
-	"github.com/brutalgg/whoisenum/pkg/cli"
 
 	"github.com/openrdap/rdap"
 )

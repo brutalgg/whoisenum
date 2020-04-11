@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/brutalgg/whoisenum/pkg/cli"
+	"github.com/brutalgg/cli"
 )
 
 func SizeCheck(readr io.ReadSeeker) {
