@@ -22,12 +22,13 @@ type WhoisIPRecord struct {
 }
 
 type WhoisDomainRecord struct {
-	Handle      string   `json:"handle"`
-	Name        string   `json:"name"`
-	NameServers []string `json:"nameservers"`
-	Status      []string `json:"status"`
-	Reg         string   `json:"registration"`
-	Exp         string   `json:"expiration"`
+	Handle          string   `json:"handle"`
+	Name            string   `json:"name"`
+	NameServers     []string `json:"nameservers"`
+	Status          []string `json:"status"`
+	Reg             string   `json:"registration"`
+	Exp             string   `json:"expiration"`
+	DomainsSearched []string `json:"domains_searched"`
 }
 
 var tenDot WhoisIPRecord = WhoisIPRecord{
@@ -72,6 +73,7 @@ func GetWhoisIPResults(ip string) (WhoisIPRecord, error) {
 
 func GetWhoisDomainResults(domain string) (WhoisDomainRecord, error) {
 	whois := new(WhoisDomainRecord)
+
 	queryResults, err := client.QueryDomain(domain)
 	if err != nil {
 		return WhoisDomainRecord{}, err
@@ -116,5 +118,6 @@ func (w WhoisDomainRecord) PrintResult() {
 	cli.WriteResults("Status:\t", strings.Join(w.Status, "\n\t "))
 	cli.WriteResults("Registration:", w.Reg)
 	cli.WriteResults("Expiration:", w.Exp)
+	cli.WriteResults("Domains Searched:\t", strings.Join(w.DomainsSearched, "\n\t"))
 	cli.WriteResults("")
 }

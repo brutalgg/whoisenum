@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/brutalgg/cli"
 	"github.com/brutalgg/whoisenum/internal/rdap"
 	"github.com/brutalgg/whoisenum/internal/utils"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/publicsuffix"
 )
 
 var domainCmd = &cobra.Command{
@@ -30,7 +32,7 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 		cli.Info("Searching Whois Records for Domain %v", l)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
 		if r, e := queryDomain(l); e != nil {
-			cli.Errorln("Whois lookup error", e)
+			cli.Errorln("Whois lookup error: ", e)
 		} else {
 			result = append(result, r)
 		}
@@ -57,11 +59,26 @@ func domainScannerLogic(ctx *cobra.Command, readr io.ReadWriteSeeker) []rdap.Who
 	rd, _ := time.ParseDuration(r)
 	utils.SizeCheck(readr)
 	scanner := bufio.NewScanner(readr)
+ScannerLoop:
 	for scanner.Scan() {
 		if i := scanner.Text(); i != "" {
 			cli.Info("Searching Whois Records for Domain %v", i)
-			if r, e := queryDomain(i); e != nil {
-				cli.Errorln("Whois lookup error", e)
+			// Get root domain
+			rootDomain, err := getRootDomain(i)
+			if err != nil {
+				cli.Errorln("Root Domain Error: ", err)
+			}
+			// Check if root romain has been queried
+			for index, entry := range result {
+				if entry.Name == strings.ToUpper(rootDomain) {
+					//Root domain has already been queried, add to root domain entry "DomainsSearched" .
+					result[index].DomainsSearched = append(result[index].DomainsSearched, strings.ToUpper(i))
+					//Skip query and exit out of current iteration of ScannerLoop.
+					continue ScannerLoop
+				}
+			}
+			if r, e := queryDomain(rootDomain); e != nil {
+				cli.Errorln("Whois lookup error: ", e)
 			} else {
 				result = append(result, r)
 			}
@@ -69,6 +86,19 @@ func domainScannerLogic(ctx *cobra.Command, readr io.ReadWriteSeeker) []rdap.Who
 		}
 	}
 	return result
+}
+
+func getRootDomain(domain string) (string, error) {
+	// Extract root domain from provided domain.
+	rootDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
+	if err != nil {
+		return rootDomain, err
+	}
+	// Check to see if root domain is different than domain provided.
+	if rootDomain != domain {
+		cli.Debug("Using Root Domain '%v' instead of '%v'", rootDomain, domain)
+	}
+	return rootDomain, err
 }
 
 func queryDomain(s string) (rdap.WhoisDomainRecord, error) {
