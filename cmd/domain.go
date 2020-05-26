@@ -69,20 +69,32 @@ ScannerLoop:
 				cli.Errorln("Root Domain Error: ", err)
 			}
 			// Check if root romain has been queried
-			for index, entry := range result {
-				if entry.Name == strings.ToUpper(rootDomain) {
-					//Root domain has already been queried, add to root domain entry "DomainsSearched" .
-					result[index].DomainsSearched = append(result[index].DomainsSearched, strings.ToUpper(i))
-					//Skip query and exit out of current iteration of ScannerLoop.
-					continue ScannerLoop
+			if result != nil {
+
+				for index, entry := range result {
+					if entry.Name == strings.ToUpper(rootDomain) {
+						//Root domain has already been queried, add to root domain entry "DomainsSearched" .
+						result[index].DomainsSearched = append(result[index].DomainsSearched, strings.ToUpper(i))
+						//Skip query and exit out of current iteration of ScannerLoop.
+						continue ScannerLoop
+					}
+				}
+				if r, e := queryDomain(rootDomain); e != nil {
+					cli.Errorln("Whois lookup error: ", e)
+				} else {
+					result = append(result, r)
+				}
+				time.Sleep(rd)
+			} else {
+				if r, e := queryDomain(rootDomain); e != nil {
+					cli.Errorln("Whois lookup error: ", e)
+				} else {
+					result = append(result, r)
+					if i != rootDomain {
+						result[0].DomainsSearched = append(result[0].DomainsSearched, strings.ToUpper(i))
+					}
 				}
 			}
-			if r, e := queryDomain(rootDomain); e != nil {
-				cli.Errorln("Whois lookup error: ", e)
-			} else {
-				result = append(result, r)
-			}
-			time.Sleep(rd)
 		}
 	}
 	return result
@@ -98,7 +110,7 @@ func getRootDomain(domain string) (string, error) {
 	if rootDomain != domain {
 		cli.Debug("Using Root Domain '%v' instead of '%v'", rootDomain, domain)
 	}
-	return rootDomain, err
+	return rootDomain, nil
 }
 
 func queryDomain(s string) (rdap.WhoisDomainRecord, error) {
