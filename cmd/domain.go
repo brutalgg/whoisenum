@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -69,19 +70,27 @@ ScannerLoop:
 				cli.Errorln("Root Domain Error: ", err)
 			}
 			// Check if root romain has been queried
-			if result != nil {
-
+			if result != nil { // first query
 				for index, entry := range result {
 					if entry.Name == strings.ToUpper(rootDomain) {
-						//Root domain has already been queried, add to root domain entry "DomainsSearched" .
+						// Root domain has already been queried, add to root domain entry "DomainsSearched".
+						// Check for duplicate in DomainsSearched.
+						for _, SearchedDomain := range entry.DomainsSearched {
+							if SearchedDomain == strings.ToUpper(i) {
+								continue ScannerLoop
+							}
+						}
+						cli.Debugln(fmt.Sprintf("Root domain '%v' has already been queried. Skipping...", rootDomain))
+						// Append current domain to DomainsSearched if no duplicate is found.
 						result[index].DomainsSearched = append(result[index].DomainsSearched, strings.ToUpper(i))
-						//Skip query and exit out of current iteration of ScannerLoop.
+						// Skip query and exit out of current iteration of ScannerLoop.
 						continue ScannerLoop
 					}
 				}
 				if r, e := queryDomain(rootDomain); e != nil {
 					cli.Errorln("Whois lookup error: ", e)
 				} else {
+					r.DomainsSearched = append(r.DomainsSearched, strings.ToUpper(i))
 					result = append(result, r)
 				}
 				time.Sleep(rd)
@@ -89,10 +98,8 @@ ScannerLoop:
 				if r, e := queryDomain(rootDomain); e != nil {
 					cli.Errorln("Whois lookup error: ", e)
 				} else {
+					r.DomainsSearched = append(r.DomainsSearched, strings.ToUpper(i))
 					result = append(result, r)
-					if i != rootDomain {
-						result[0].DomainsSearched = append(result[0].DomainsSearched, strings.ToUpper(i))
-					}
 				}
 			}
 		}
