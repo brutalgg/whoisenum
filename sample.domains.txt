@@ -1,0 +1,6 @@
+test.test.azure.com
+azure.kkkkkkdkdkdk
+google.com
+mail.google.com
+test.azure.com
+sample.google.com

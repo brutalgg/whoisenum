@@ -2,14 +2,17 @@ package cmd
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/brutalgg/cli"
 	"github.com/brutalgg/whoisenum/internal/rdap"
 	"github.com/brutalgg/whoisenum/internal/utils"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/publicsuffix"
 )
 
 var domainCmd = &cobra.Command{
@@ -30,7 +33,7 @@ func baseDomainCmd(ctx *cobra.Command, args []string) {
 		cli.Info("Searching Whois Records for Domain %v", l)
 		cli.Infoln("This make take some time depending on the number of queries and your internet connection")
 		if r, e := queryDomain(l); e != nil {
-			cli.Errorln("Whois lookup error", e)
+			cli.Errorln("Whois lookup error: ", e)
 		} else {
 			result = append(result, r)
 		}
@@ -57,18 +60,64 @@ func domainScannerLogic(ctx *cobra.Command, readr io.ReadWriteSeeker) []rdap.Who
 	rd, _ := time.ParseDuration(r)
 	utils.SizeCheck(readr)
 	scanner := bufio.NewScanner(readr)
+ScannerLoop:
 	for scanner.Scan() {
 		if i := scanner.Text(); i != "" {
 			cli.Info("Searching Whois Records for Domain %v", i)
-			if r, e := queryDomain(i); e != nil {
-				cli.Errorln("Whois lookup error", e)
-			} else {
-				result = append(result, r)
+			// Get root domain
+			rootDomain, err := getRootDomain(i)
+			if err != nil {
+				cli.Errorln("Root Domain Error: ", err)
 			}
-			time.Sleep(rd)
+			// Check if root romain has been queried
+			if result != nil { // first query
+				for index, entry := range result {
+					if entry.Name == strings.ToUpper(rootDomain) {
+						// Root domain has already been queried, add to root domain entry "DomainsSearched".
+						// Check for duplicate in DomainsSearched.
+						for _, SearchedDomain := range entry.DomainsSearched {
+							if SearchedDomain == strings.ToUpper(i) {
+								continue ScannerLoop
+							}
+						}
+						cli.Debugln(fmt.Sprintf("Root domain '%v' has already been queried. Skipping...", rootDomain))
+						// Append current domain to DomainsSearched if no duplicate is found.
+						result[index].DomainsSearched = append(result[index].DomainsSearched, strings.ToUpper(i))
+						// Skip query and exit out of current iteration of ScannerLoop.
+						continue ScannerLoop
+					}
+				}
+				if r, e := queryDomain(rootDomain); e != nil {
+					cli.Errorln("Whois lookup error: ", e)
+				} else {
+					r.DomainsSearched = append(r.DomainsSearched, strings.ToUpper(i))
+					result = append(result, r)
+				}
+				time.Sleep(rd)
+			} else {
+				if r, e := queryDomain(rootDomain); e != nil {
+					cli.Errorln("Whois lookup error: ", e)
+				} else {
+					r.DomainsSearched = append(r.DomainsSearched, strings.ToUpper(i))
+					result = append(result, r)
+				}
+			}
 		}
 	}
 	return result
+}
+
+func getRootDomain(domain string) (string, error) {
+	// Extract root domain from provided domain.
+	rootDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
+	if err != nil {
+		return rootDomain, err
+	}
+	// Check to see if root domain is different than domain provided.
+	if rootDomain != domain {
+		cli.Debug("Using Root Domain '%v' instead of '%v'", rootDomain, domain)
+	}
+	return rootDomain, nil
 }
 
 func queryDomain(s string) (rdap.WhoisDomainRecord, error) {

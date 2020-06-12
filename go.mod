@@ -7,4 +7,5 @@ require (
 	github.com/go-delve/delve v1.4.0 // indirect
 	github.com/openrdap/rdap v0.9.0
 	github.com/spf13/cobra v0.0.6
+	golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2
 )
